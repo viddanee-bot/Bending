@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;text-align:center">
+<h3>Bending Stress in a Simply Supported Beam</h3>
+<canvas id="c" width="800" height="380" style="border:1px solid #ccc"></canvas><br>
+Max load P: <input id="p" type="range" min="1" max="100" value="60">
+<span id="info"></span>
+<script>
+const c=document.getElementById('c'),g=c.getContext('2d');
+const L=500,x0=60,y0=170,h=40,N=100;   // beam length, left x, neutral axis y, depth
+let t=0;
+function color(s){ // s in [-1,1]: -1 compression (blue), +1 tension (red)
+  return s>0?`rgba(220,${Math.round(220-200*s)},${Math.round(220-200*s)},1)`
+            :`rgba(${Math.round(220+200*s)},${Math.round(220+200*s)},220,1)`;}
+function frame(){
+  t+=0.015;
+  const Pmax=document.getElementById('p').value/100;
+  const load=Pmax*(0.5-0.5*Math.cos(t));      // load oscillates 0 -> Pmax
+  const dmax=70*load;                          // mid-span deflection (px)
+  g.clearRect(0,0,800,380);
+  const y=x=>dmax*(3*x/L-4*Math.pow(x/L,3))*(x<=L/2?1:0)+
+            (x>L/2?dmax*(3*(L-x)/L-4*Math.pow((L-x)/L,3)):0);
+  const M=x=>x<=L/2?x/L:(L-x)/L;               // normalized moment diagram
+  // draw beam as strips: top/bottom fibers colored by stress
+  const layers=8;
+  for(let k=0;k<layers;k++){
+    const f=(k+0.5)/layers*2-1;                // -1 top ... +1 bottom
+    for(let i=0;i<N;i++){
+      const xa=i*L/N,xb=(i+1)*L/N;
+      const s=f*2*M((xa+xb)/2)*load/Math.max(Pmax,0.01)*Math.min(1,Pmax*1.2);
+      g.fillStyle=color(Math.max(-1,Math.min(1,s)));
+      const ty=y0-h/2+k*h/layers;
+      g.beginPath();
+      g.moveTo(x0+xa,ty+y(xa));g.lineTo(x0+xb,ty+y(xb));
+      g.lineTo(x0+xb,ty+h/layers+y(xb));g.lineTo(x0+xa,ty+h/layers+y(xa));
+      g.fill();
+    }
+  }
+  // supports
+  g.fillStyle='#444';
+  [[x0],[x0+L]].forEach(([x])=>{g.beginPath();g.moveTo(x,y0+h/2);
+    g.lineTo(x-15,y0+h/2+25);g.lineTo(x+15,y0+h/2+25);g.fill();});
+  // load arrow
+  const ay=y0-h/2-20-80*load+dmax;
+  g.strokeStyle='#000';g.lineWidth=3;g.beginPath();
+  g.moveTo(x0+L/2,y0-h/2-110+dmax*0);g.lineTo(x0+L/2,y0-h/2+dmax-2);g.stroke();
+  g.fillStyle='#000';g.fillText('P',x0+L/2+8,y0-h/2-100);
+  // bending moment diagram
+  g.strokeStyle='#080';g.beginPath();g.moveTo(x0,330);
+  g.lineTo(x0+L/2,330-70*load);g.lineTo(x0+L,330);g.stroke();
+  g.fillStyle='#080';g.fillText('Bending moment diagram (M = PL/4 at center)',x0,350);
+  // stress distribution at midspan (right side)
+  const sx=670,sy=y0;
+  g.strokeStyle='#000';g.lineWidth=1;g.beginPath();
+  g.moveTo(sx,sy-h);g.lineTo(sx,sy+h);g.stroke();
+  g.fillStyle='rgba(220,60,60,.6)';
+  g.beginPath();g.moveTo(sx,sy);g.lineTo(sx+60*load,sy+h/2);g.lineTo(sx,sy+h/2);g.fill();
+  g.fillStyle='rgba(60,60,220,.6)';
+  g.beginPath();g.moveTo(sx,sy);g.lineTo(sx-60*load,sy-h/2);g.lineTo(sx,sy-h/2);g.fill();
+  g.fillStyle='#000';g.fillText('σ = My/I',sx-20,sy-h-10);
+  g.fillText('Neutral axis',sx+20,sy);
+  document.getElementById('info').textContent=
+    ' Load = '+(load*100).toFixed(0)+'%  Deflection = '+dmax.toFixed(1)+' px';
+  requestAnimationFrame(frame);
+}
+frame();
+</script>
+</body>
+</html>
